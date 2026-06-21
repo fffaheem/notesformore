@@ -1,0 +1,55 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #242424;
+}
+
+.title{
+    position: absolute;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+}
+
+
+.notesContainer{
+    border: 2px solid black;
+    /*max-width: 70dvw;*/
+    width: min(80dvw, 70rem);
+    max-height: 70dvh;
+    border-radius: 1rem;
+    padding: 2rem;
+
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+
+.notes{
+    border: 2px solid black;
+    margin: 1rem;
+    border-radius: 1rem;
+    padding: 1rem 1rem;
+    color: white;
+    cursor: pointer;
+    flex: 1 0 15rem;
+    transition: all 150ms ease-in-out;
+}
+
+.notes:hover{
+    transform: scale(1.025);
+}
