@@ -4,12 +4,24 @@
     box-sizing: border-box;
 }
 
+:root{
+    --border-raduis: 1rem;
+    --background-color: #121212;
+    --border-color: #262626;
+    --text-color: #E0E0E0;
+
+    /* Font Variables */
+    --font-heading: 'Doto', sans-serif;
+    --font-body: 'JetBrains Mono', monospace;
+}
+
 body{
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #242424;
+    background-color: var(--background-color);
+    font-family: var(--font-body);
 }
 
 .title{
@@ -17,16 +29,17 @@ body{
     top: 1.25rem;
     left: 50%;
     transform: translateX(-50%);
-    color: white;
+    color: var(--text-color);
+    font-family: var(--font-heading);
 }
 
 
 .notesContainer{
-    border: 2px solid black;
+    border: 2px solid var(--border-color);
     /*max-width: 70dvw;*/
     width: min(80dvw, 70rem);
     max-height: 70dvh;
-    border-radius: 1rem;
+    border-radius: var(--border-raduis);
     padding: 2rem;
 
     display: flex;
@@ -40,16 +53,16 @@ body{
 
 
 .notes{
-    border: 2px solid black;
+    border: 2px solid var(--border-color);
     margin: 1rem;
-    border-radius: 1rem;
+    border-radius: var(--border-raduis);
     padding: 1rem 1rem;
-    color: white;
+    color: var(--text-color);
     cursor: pointer;
     flex: 1 0 15rem;
     transition: all 150ms ease-in-out;
 }
 
 .notes:hover{
-    transform: scale(1.025);
+    transform: scale(1.0625);
 }
