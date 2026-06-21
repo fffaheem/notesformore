@@ -7,6 +7,8 @@
 :root{
     --border-raduis: 1rem;
     --background-color: #121212;
+    --background-danger: rgba(255,0,0,0.25);
+    --background-danger-5: rgba(255,0,0,0.5);
     --border-color: #262626;
     --text-color: #E0E0E0;
 
@@ -20,8 +22,10 @@ body{
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-direction: column;
     background-color: var(--background-color);
     font-family: var(--font-body);
+    gap: 1rem;
 }
 
 .title{
@@ -61,8 +65,45 @@ body{
     cursor: pointer;
     flex: 1 0 15rem;
     transition: all 150ms ease-in-out;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .notes:hover{
+    transform: scale(1.0625);
+}
+
+.deleteBtn{
+    padding: 1rem;
+    background: var(--background-danger);
+    border-radius: var(--border-raduis);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.deleteBtn:hover{
+    background: var(--background-danger-5);
+}
+
+
+.addBtnContainer{
+    width: min(80dvw, 70rem);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+.addBtn{
+    padding: 1rem;
+    background: transparent;
+    border-radius: var(--border-raduis);
+    border: 2px solid var(--border-color);
+    transition: all 150ms ease-in-out;
+    color: var(--text-color);
+    min-width: 15rem;
+    /*margin-left: auto;*/
+}
+.addBtn:hover{
     transform: scale(1.0625);
 }
