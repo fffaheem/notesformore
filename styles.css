@@ -8,6 +8,7 @@
     --border-raduis: 1rem;
     --background-color: #121212;
     --background-danger: rgba(255,0,0,0.25);
+    --background-add: rgba(0,255,0,0.125);
     --background-danger-5: rgba(255,0,0,0.5);
     --border-color: #262626;
     --text-color: #E0E0E0;
@@ -104,10 +105,15 @@ body{
     transition: all 150ms ease-in-out;
     color: var(--text-color);
     min-width: 15rem;
+    cursor: pointer;
 }
 
 .btnContainer button:hover{
     transform: scale(1.0625);
+}
+
+.addBtn:hover{
+    background-color: var(--background-add);
 }
 
 
