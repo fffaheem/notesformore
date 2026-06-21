@@ -149,3 +149,31 @@ body{
     }
 
 }
+
+#modalOut{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.25);
+    backdrop-filter: blur(2px);
+    /*display: flex;*/
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    display: none;
+    color: var(--text-color);
+}
+
+#modalOut.show{
+    display: flex;
+}
+
+#modalInner{
+    background-color: var(--background-color);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-raduis);
+    padding: 2rem;
+    margin: 0 1rem;
+}
