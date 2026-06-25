@@ -68,13 +68,13 @@
     } else {
       let elems = ``
       for (let i = 0; i < items.length; i++) {
-        elems += `<a href="./notes.html#${items[i]["Title"]}" class = 'notes'>`
-        elems += `<div>`
+        elems += `<div class = 'notes'>`
+        elems += `<a href="./notes.html#${items[i]["Title"]}" class="notediv">`
         elems += `<div data-title="${items[i]["Title"]}"> ${items[i]["Title"]} </div>`
         elems += `<p style="font-size: small;">${items[i]["Date"]}</p>`
-        elems += `</div>`
+        elems += `</a>`
         elems += `<button class='deleteEditBtn' data-title="${items[i]["Title"]}"> Edit / Delete</button>`
-        elems += "</a> "
+        elems += "</div> "
       }
       Elements.notesContainer.innerHTML = elems
     }

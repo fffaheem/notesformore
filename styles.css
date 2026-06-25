@@ -51,12 +51,15 @@ body{
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    text-decoration: none;
 }
 
 .notes:hover{
     transform: scale(1.0625);
+}
+
+.notediv{
+    text-decoration: none;
+    color: inherit;
 }
 
 .deleteEditBtn{
