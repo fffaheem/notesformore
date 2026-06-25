@@ -181,11 +181,16 @@
     cancelContext:    document.getElementById("cancelContext"),
     contextMenu:      document.getElementById("contextMenu"),
     generatePromptBtn:document.getElementById("generatePromptBtn"),
+    generateHumanBtn: document.getElementById("generateHumanBtn"),
     promptModal:      document.getElementById("promptModal"),
+    promptModalTitle: null,
     promptOutput:     document.getElementById("promptOutput"),
     copyPrompt:       document.getElementById("copyPrompt"),
     closePromptModal: document.getElementById("closePromptModal"),
   };
+
+  // Cache the modal title element
+  Els.promptModalTitle = Els.promptModal.querySelector(".modal-body h2");
 
   // ============================================================
   // STATE
@@ -439,8 +444,14 @@
   // PROMPT GENERATOR
   // ============================================================
   Els.generatePromptBtn.addEventListener("click", () => {
-    const prompt = generatePrompt();
-    Els.promptOutput.textContent = prompt;
+    if (Els.promptModalTitle) Els.promptModalTitle.textContent = "Generated Prompt";
+    Els.promptOutput.textContent = generatePrompt();
+    Els.promptModal.classList.add("show");
+  });
+
+  Els.generateHumanBtn.addEventListener("click", () => {
+    if (Els.promptModalTitle) Els.promptModalTitle.textContent = "Human Summary";
+    Els.promptOutput.textContent = generateHumanSummary();
     Els.promptModal.classList.add("show");
   });
 
@@ -609,6 +620,193 @@
     lines.push(`==============================`);
     lines.push(`Total active cells: ${currentCells.length}`);
     lines.push(`==============================`);
+
+    return lines.join("\n");
+  }
+
+  // ============================================================
+  // HUMAN-FRIENDLY SUMMARY GENERATOR
+  // ============================================================
+  function generateHumanSummary() {
+    const store = loadStore();
+    const idx   = buildIndexes(store);
+    const note  = store.notes[noteId];
+    if (!note) return "Note not found.";
+
+    const cellIds = idx.cellsByNoteId[noteId] || [];
+    const allCells = cellIds
+      .map((id) => store.cells[id])
+      .filter(Boolean)
+      .sort((a, b) => a.createdAt - b.createdAt);
+
+    const active = allCells.filter((c) => c.status === "ACTIVE");
+
+    const supersededIds = new Set(
+      store.relationships
+        .filter((r) => r.relationshipType === "EDIT")
+        .map((r) => r.from)
+    );
+
+    function friendlyDate(ts) {
+      const d = new Date(ts);
+      const now = new Date();
+      const diff = now - d;
+      const mins = Math.floor(diff / 60000);
+      const hrs  = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+      const date = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+      if (mins < 1) return "just now";
+      if (mins < 60) return `${mins} minute${mins > 1 ? "s" : ""} ago`;
+      if (hrs < 24) return `${hrs} hour${hrs > 1 ? "s" : ""} ago (${time})`;
+      if (days < 7) return `${days} day${days > 1 ? "s" : ""} ago — ${date} at ${time}`;
+      return `${date} at ${time}`;
+    }
+
+    function friendlyCategory(cat) {
+      const map = {
+        NOTE: "noted", IDEA: "had an idea", QUESTION: "asked",
+        MISTAKE: "identified a mistake", DECISION: "decided",
+      };
+      return map[cat] || "wrote";
+    }
+
+    function friendlyRel(type) {
+      const map = {
+        REPLY: "replied with", ANSWER: "answered with",
+        ADDITION: "added", REFERENCE: "referenced with",
+      };
+      return map[type] || "linked";
+    }
+
+    // Follow EDIT chain to latest version
+    function getLatestVersion(cellId) {
+      let current = cellId;
+      const seen = new Set();
+      while (true) {
+        seen.add(current);
+        const outEdits = (idx.relationshipsByFrom[current] || [])
+          .filter((r) => r.relationshipType === "EDIT");
+        if (outEdits.length === 0) break;
+        const nextId = outEdits[0].to;
+        if (seen.has(nextId)) break;
+        current = nextId;
+      }
+      return current;
+    }
+
+    // Build tree (same logic as generatePrompt)
+    const childIds = new Set();
+    const childrenOf = {};
+
+    store.relationships.forEach((rel) => {
+      const fromCell = store.cells[rel.from];
+      const toCell   = store.cells[rel.to];
+      if (!fromCell || !toCell) return;
+      if (fromCell.noteId !== noteId || toCell.noteId !== noteId) return;
+      if (rel.relationshipType === "EDIT") return;
+
+      const childId = getLatestVersion(rel.to);
+      const childCell = store.cells[childId];
+      if (!childCell) return;
+
+      const parentId = getLatestVersion(rel.from);
+      childIds.add(childId);
+
+      if (!childrenOf[parentId]) childrenOf[parentId] = [];
+      childrenOf[parentId].push({ rel, cell: childCell });
+    });
+
+    const roots = active.filter(
+      (c) => !supersededIds.has(c.id) && !childIds.has(c.id)
+    );
+
+    // Recursive human-friendly renderer
+    const visited = new Set();
+
+    function renderHuman(cell, depth) {
+      if (visited.has(cell.id)) return [];
+      visited.add(cell.id);
+
+      const pad = "  ".repeat(depth);
+      const lines = [];
+
+      if (depth === 0) {
+        lines.push(`${friendlyDate(cell.createdAt)} — ${friendlyCategory(cell.category)}:`);
+        lines.push(`  "${cell.content}"`);
+      } else {
+        lines.push(`${pad}"${cell.content}"`);
+      }
+
+      const children = (childrenOf[cell.id] || [])
+        .filter((ch) => ch.cell.status === "ACTIVE")
+        .sort((a, b) => a.cell.createdAt - b.cell.createdAt);
+
+      children.forEach((ch) => {
+        const childPad = "  ".repeat(depth + 1);
+        lines.push(`${childPad}↳ Then ${friendlyRel(ch.rel.relationshipType)} (${friendlyDate(ch.cell.createdAt)}):`);
+        const sub = renderHuman(ch.cell, depth + 2);
+        lines.push(...sub);
+      });
+
+      return lines;
+    }
+
+    // Unresolved questions
+    const currentCells = active.filter((c) => !supersededIds.has(c.id));
+    const unresolvedQuestions = currentCells.filter((c) => {
+      if (c.category !== "QUESTION") return false;
+      const outgoing = idx.relationshipsByFrom[c.id] || [];
+      return !outgoing.some((r) => r.relationshipType === "ANSWER");
+    });
+
+    // Count by category
+    const catCounts = {};
+    currentCells.forEach((c) => {
+      catCounts[c.category] = (catCounts[c.category] || 0) + 1;
+    });
+
+    // --- Assemble ---
+    const lines = [];
+    const created = new Date(note.createdAt);
+    const createdStr = created.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    lines.push(`${note.title}`);
+    lines.push(`Created on ${createdStr} · ${currentCells.length} active cell${currentCells.length !== 1 ? "s" : ""}`);
+    lines.push("");
+
+    // Category breakdown
+    const catLabels = { NOTE: "Notes", IDEA: "Ideas", QUESTION: "Questions", MISTAKE: "Mistakes", DECISION: "Decisions" };
+    const breakdown = Object.entries(catCounts)
+      .map(([cat, count]) => `${count} ${catLabels[cat] || cat}`)
+      .join(" · ");
+    if (breakdown) {
+      lines.push(`Breakdown: ${breakdown}`);
+      lines.push("");
+    }
+
+    // Tree
+    lines.push("─────────────────────────────");
+    lines.push("");
+
+    roots.forEach((root) => {
+      const tree = renderHuman(root, 0);
+      lines.push(...tree);
+      lines.push("");
+    });
+
+    // Open questions
+    if (unresolvedQuestions.length > 0) {
+      lines.push("─────────────────────────────");
+      lines.push(`Still unanswered (${unresolvedQuestions.length}):`);
+      lines.push("");
+      unresolvedQuestions.forEach((c) => {
+        lines.push(`  • ${c.content}`);
+      });
+      lines.push("");
+    }
 
     return lines.join("\n");
   }

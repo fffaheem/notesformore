@@ -70,6 +70,11 @@ html, body {
     margin-bottom: 1rem;
 }
 
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .back-link {
     font-size: 0.78rem;
     color: var(--text-3);
