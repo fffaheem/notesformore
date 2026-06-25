@@ -166,8 +166,9 @@
   // this is just default for now
   function openModal() {
     Elements.modalOut.classList.add("show")
+    Elements.modalBody.dataset.type = "Default"
     Elements.modalBody.innerHTML = `
-    <h1 id="modalType" data-type = "default" style="text-align: center;">Default</h1>
+    <h1 style="text-align: center;">Default</h1>
     `;
     return
   }
@@ -176,9 +177,12 @@
   Elements.notesContainer.addEventListener(("click"), checkNotes);
   // openAddModal to open Modal when add button is pressed
   Elements.addBtn.addEventListener(("click"), openAddModal);
-  Elements.modalOut.addEventListener(("click"), checkModal);
+  // import modal open
   Elements.importBtn.addEventListener(("click"), openModal);
+  // export modal open
   Elements.exportBtn.addEventListener(("click"), openModal);
+  // Deciding what modal should be expecting like add or delete note
+  Elements.modalOut.addEventListener(("click"), checkModal);
 
 
   function init() {
