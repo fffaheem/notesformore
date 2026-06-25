@@ -3,34 +3,39 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Note For More</title>
+	<title>Notes For More</title>
 
-    <link rel="preconnect" href="https://googleapis.com">
-    <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Special+Elite&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Doto:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Doto:wght@100..900&display=swap" rel="stylesheet">
 	
 	<link rel="stylesheet" href="root.css">
 	<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1 class="title">Notes For More</h1>
-    <div class="notesContainer" id="notesContainer">
-
-    </div>
-    <div class="btnContainer">
-        <div>
-            <button id="exportBtn">Export</button>
-            <button id="importBtn">Import</button>
+    <header class="header">
+        <h1 class="title">Notes For More</h1>
+    </header>
+    
+    <div class="main-content">
+        <div class="btnContainer">
+            <div class="left-btns">
+                <button id="exportBtn" class="secondary-btn">Export</button>
+                <button id="importBtn" class="secondary-btn">Import</button>
+            </div>
+            <button id="addBtn" class="primary-btn addBtn">Add Note</button>
         </div>
-        <button id="addBtn" class="addBtn">Add</button>
+
+        <div class="notesContainer" id="notesContainer">
+            <!-- Notes will be rendered here -->
+        </div>
     </div>
 
-    <div id="modalOut">
-        <div id="modalInner">
+    <div id="modalOut" class="modal-backdrop">
+        <div id="modalInner" class="modal-content">
             <div id="modalBody">
             </div>
-            <button id="closeModal" class="modalBtn">Close</button>
+            <button id="closeModal" class="modalBtn secondary-btn">Close</button>
         </div>
     </div>
     

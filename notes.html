@@ -3,18 +3,30 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Note For More</title>
+	<title>Note Editor</title>
 
-    <link rel="preconnect" href="https://googleapis.com">
-    <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Special+Elite&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Doto:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Doto:wght@100..900&display=swap" rel="stylesheet">
 	
 	<link rel="stylesheet" href="root.css">
 	<link rel="stylesheet" href="notes.css">
 </head>
 <body>
-	Yuhoo
+    <header class="header">
+        <a href="index.html" class="back-btn">← Back to Notes</a>
+        <h1 class="title" id="noteTitleDisplay">Loading...</h1>
+    </header>
+    
+    <div class="main-content">
+        <div class="editor-container">
+            <textarea id="noteBodyInput" placeholder="Start typing your note here..."></textarea>
+            <div class="save-bar">
+                <span id="saveStatus">All changes saved</span>
+                <button id="saveBtn" class="primary-btn">Save</button>
+            </div>
+        </div>
+    </div>
 </body>
 <script src="./notes.js"></script>
 </html>
