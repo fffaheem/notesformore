@@ -471,18 +471,15 @@
       .filter(Boolean)
       .sort((a, b) => a.createdAt - b.createdAt);
 
-    // Active cells only (not deleted, not archived)
+    // Active cells only
     const active = allCells.filter((c) => c.status === "ACTIVE");
 
-    // Cells that have been superseded by an EDIT relationship (old versions)
+    // Cells superseded by an EDIT relationship (old versions)
     const supersededIds = new Set(
       store.relationships
         .filter((r) => r.relationshipType === "EDIT")
         .map((r) => r.from)
     );
-
-    // Current state = active cells that have NOT been superseded
-    const currentCells = active.filter((c) => !supersededIds.has(c.id));
 
     function fmtDate(ts) {
       return new Date(ts).toLocaleString("en-GB", {
@@ -491,20 +488,100 @@
       });
     }
 
-    function sectionOf(category) {
-      return currentCells
-        .filter((c) => c.category === category)
-        .map((c) => `  • ${c.content}`)
-        .join("\n");
+    // --- Follow EDIT chain to find the latest version of a cell ---
+    function getLatestVersion(cellId) {
+      let current = cellId;
+      const seen = new Set();
+      while (true) {
+        seen.add(current);
+        const outEdits = (idx.relationshipsByFrom[current] || [])
+          .filter((r) => r.relationshipType === "EDIT");
+        if (outEdits.length === 0) break;
+        const nextId = outEdits[0].to;
+        if (seen.has(nextId)) break;
+        current = nextId;
+      }
+      return current;
     }
 
-    // Unresolved questions: QUESTION cells with no outgoing ANSWER relationship
+    // --- Build the tree ---
+    // Step 1: Collect only non-EDIT relationships within this note
+    // Step 2: Remap parents — if a parent was superseded (edited),
+    //         redirect the child to hang off the LATEST version of that parent.
+    //         This way replies/additions to old cells show under the new version.
+
+    const childIds = new Set();       // cells that are nested children (non-EDIT targets)
+    const childrenOf = {};            // canonicalParentId → [ { rel, cell } ]
+
+    store.relationships.forEach((rel) => {
+      const fromCell = store.cells[rel.from];
+      const toCell   = store.cells[rel.to];
+      if (!fromCell || !toCell) return;
+      if (fromCell.noteId !== noteId || toCell.noteId !== noteId) return;
+
+      // Skip EDIT relationships — they are handled as replacements, not nesting
+      if (rel.relationshipType === "EDIT") return;
+
+      // The child is the `to` cell (or its latest version if it was edited)
+      const childId = getLatestVersion(rel.to);
+      const childCell = store.cells[childId];
+      if (!childCell) return;
+
+      // The parent is the latest version of the `from` cell
+      const parentId = getLatestVersion(rel.from);
+
+      childIds.add(childId);
+
+      if (!childrenOf[parentId]) childrenOf[parentId] = [];
+      childrenOf[parentId].push({ rel, cell: childCell });
+    });
+
+    // Root cells: active, latest version (not superseded), and not a child
+    const roots = active.filter(
+      (c) => !supersededIds.has(c.id) && !childIds.has(c.id)
+    );
+
+    // --- Recursive tree renderer ---
+    const visited = new Set();
+
+    function renderTree(cell, depth) {
+      if (visited.has(cell.id)) return [];
+      visited.add(cell.id);
+
+      const indent = "    ".repeat(depth);
+      const lines = [];
+
+      if (depth === 0) {
+        lines.push(`[${fmtDate(cell.createdAt)}] [${cell.category}] ${cell.content}`);
+      } else {
+        lines.push(`${indent}[${fmtDate(cell.createdAt)}] ${cell.content}`);
+      }
+
+      // Gather children, sorted chronologically
+      const children = (childrenOf[cell.id] || [])
+        .filter((ch) => ch.cell.status === "ACTIVE")
+        .sort((a, b) => a.cell.createdAt - b.cell.createdAt);
+
+      children.forEach((ch) => {
+        const relLabel = ch.rel.relationshipType.toLowerCase();
+        const childIndent = "    ".repeat(depth + 1);
+        lines.push(`${childIndent}↳ ${relLabel}`);
+        const sub = renderTree(ch.cell, depth + 2);
+        lines.push(...sub);
+      });
+
+      return lines;
+    }
+
+    // Unresolved questions
+    const currentCells = active.filter((c) => !supersededIds.has(c.id));
     const unresolvedQuestions = currentCells.filter((c) => {
       if (c.category !== "QUESTION") return false;
       const outgoing = idx.relationshipsByFrom[c.id] || [];
       return !outgoing.some((r) => r.relationshipType === "ANSWER");
     });
 
+    // --- Assemble the prompt ---
     const lines = [];
 
     lines.push(`==============================`);
@@ -512,55 +589,20 @@
     lines.push(`Generated: ${fmtDate(Date.now())}`);
     lines.push(`==============================\n`);
 
-    // --- TIMELINE (chronological, current state only) ---
+    // --- TREE TIMELINE ---
     lines.push(`── TIMELINE ──────────────────`);
-    currentCells.forEach((c) => {
-      const inRels = idx.relationshipsByTo[c.id] || [];
-      const relLabel = inRels.length
-        ? `[${inRels.map(r => r.relationshipType).join(", ")}] `
-        : "";
-      lines.push(`[${fmtDate(c.createdAt)}] [${c.category}] ${relLabel}${c.content}`);
+    roots.forEach((root) => {
+      const tree = renderTree(root, 0);
+      lines.push(...tree);
+      lines.push("");
     });
-    lines.push("");
 
-    // --- IDEAS ---
-    const ideas = sectionOf("IDEA");
-    if (ideas) {
-      lines.push(`── IDEAS ─────────────────────`);
-      lines.push(ideas);
-      lines.push("");
-    }
-
-    // --- MISTAKES ---
-    const mistakes = sectionOf("MISTAKE");
-    if (mistakes) {
-      lines.push(`── MISTAKES ──────────────────`);
-      lines.push(mistakes);
-      lines.push("");
-    }
-
-    // --- DECISIONS ---
-    const decisions = sectionOf("DECISION");
-    if (decisions) {
-      lines.push(`── DECISIONS ─────────────────`);
-      lines.push(decisions);
-      lines.push("");
-    }
-
-    // --- CURRENT QUESTIONS (unresolved) ---
+    // --- OPEN QUESTIONS ---
     if (unresolvedQuestions.length > 0) {
       lines.push(`── OPEN QUESTIONS ────────────`);
       unresolvedQuestions.forEach((c) => {
         lines.push(`  ? ${c.content}`);
       });
-      lines.push("");
-    }
-
-    // --- CURRENT STATE (summary of active notes) ---
-    const notes = currentCells.filter((c) => c.category === "NOTE");
-    if (notes.length > 0) {
-      lines.push(`── CURRENT STATE ─────────────`);
-      notes.forEach((c) => lines.push(`  ${c.content}`));
       lines.push("");
     }
 
