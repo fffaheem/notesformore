@@ -1,44 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Notes For More</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes For More</title>
+    <meta name="description" content="A graph-based note timeline for LLM prompting.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Doto:wght@100..900&display=swap" rel="stylesheet">
-	
-	<link rel="stylesheet" href="root.css">
-	<link rel="stylesheet" href="styles.css">
+
+    <link rel="stylesheet" href="root.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header class="header">
-        <h1 class="title">Notes For More</h1>
-    </header>
-    
-    <div class="main-content">
-        <div class="btnContainer">
-            <div class="left-btns">
-                <button id="exportBtn" class="secondary-btn">Export</button>
-                <button id="importBtn" class="secondary-btn">Import</button>
+
+    <div class="page-wrapper">
+        <header class="site-header">
+            <h1 class="site-title">NOTES FOR MORE</h1>
+            <p class="site-subtitle">Git for thoughts.</p>
+        </header>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <button id="exportBtn" class="btn btn-ghost">Export</button>
+                <button id="importBtn" class="btn btn-ghost">Import</button>
             </div>
-            <button id="addBtn" class="primary-btn addBtn">Add Note</button>
+            <button id="addBtn" class="btn btn-primary">+ New Note</button>
         </div>
 
-        <div class="notesContainer" id="notesContainer">
-            <!-- Notes will be rendered here -->
+        <div id="notesContainer" class="notes-grid">
+            <!-- Rendered by script.js -->
         </div>
     </div>
 
+    <!-- Modal Backdrop -->
     <div id="modalOut" class="modal-backdrop">
-        <div id="modalInner" class="modal-content">
-            <div id="modalBody">
+        <div id="modalInner" class="modal-box">
+            <div id="modalBody" class="modal-body"></div>
+            <div class="modal-footer">
+                <button id="closeModal" class="btn btn-ghost">Close</button>
             </div>
-            <button id="closeModal" class="modalBtn secondary-btn">Close</button>
         </div>
     </div>
-    
+
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+
+    <script src="./script.js"></script>
 </body>
-<script src="./script.js"></script>
 </html>

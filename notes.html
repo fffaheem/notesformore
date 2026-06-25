@@ -1,32 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Note Editor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Doto:wght@100..900&display=swap" rel="stylesheet">
-	
-	<link rel="stylesheet" href="root.css">
-	<link rel="stylesheet" href="notes.css">
+
+    <link rel="stylesheet" href="root.css">
+    <link rel="stylesheet" href="notes.css">
 </head>
 <body>
-    <header class="header">
-        <a href="index.html" class="back-btn">← Back to Notes</a>
-        <h1 class="title" id="noteTitleDisplay">Loading...</h1>
-    </header>
-    
-    <div class="main-content">
-        <div class="editor-container">
-            <textarea id="noteBodyInput" placeholder="Start typing your note here..."></textarea>
-            <div class="save-bar">
-                <span id="saveStatus">All changes saved</span>
-                <button id="saveBtn" class="primary-btn">Save</button>
+
+    <div class="page-wrapper">
+
+        <header class="timeline-header">
+            <div class="header-top">
+                <a href="index.html" class="back-link">← All Notes</a>
+                <div class="header-actions">
+                    <button id="generatePromptBtn" class="btn btn-primary">Generate Prompt</button>
+                </div>
+            </div>
+            <h1 class="note-title" id="noteTitleDisplay">Loading...</h1>
+        </header>
+
+        <!-- Timeline -->
+        <div id="timeline" class="timeline">
+            <!-- Cells rendered by notes.js -->
+        </div>
+
+        <!-- Input Bar -->
+        <div class="input-bar">
+            <div id="replyContext" class="reply-context" style="display:none;">
+                <span id="replyContextText"></span>
+                <button id="cancelContext" class="cancel-context">✕</button>
+            </div>
+            <div class="input-row">
+                <textarea
+                    id="cellInput"
+                    class="cell-input"
+                    placeholder="Type and press Enter to add a cell. Shift+Enter for new line."
+                    rows="1"
+                ></textarea>
+                <button id="submitCell" class="btn btn-primary submit-btn">Add</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu" style="display:none;">
+        <div class="context-section-label">Category</div>
+        <button class="ctx-item" data-action="cat-NOTE">📝 Note</button>
+        <button class="ctx-item" data-action="cat-IDEA">💡 Idea</button>
+        <button class="ctx-item" data-action="cat-QUESTION">❓ Question</button>
+        <button class="ctx-item" data-action="cat-MISTAKE">⚠️ Mistake</button>
+        <button class="ctx-item" data-action="cat-DECISION">✅ Decision</button>
+        <div class="context-divider"></div>
+        <div class="context-section-label">Link</div>
+        <button class="ctx-item" data-action="link-ADD">＋ Add to this cell</button>
+        <button class="ctx-item" data-action="link-REPLY">↩ Reply</button>
+        <button class="ctx-item" data-action="link-ANSWER">✔ Answer</button>
+        <button class="ctx-item" data-action="link-EDIT">✏️ Edit (Linked)</button>
+        <button class="ctx-item" data-action="link-REFERENCE">🔗 Reference</button>
+        <div class="context-divider"></div>
+        <div class="context-section-label">Status</div>
+        <button class="ctx-item ctx-danger" data-action="status-DELETED">🗑 Soft Delete</button>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div id="promptModal" class="modal-backdrop">
+        <div class="modal-box modal-wide">
+            <div class="modal-body">
+                <h2>Generated Prompt</h2>
+                <pre id="promptOutput" class="prompt-output"></pre>
+            </div>
+            <div class="modal-footer">
+                <button id="copyPrompt" class="btn btn-primary">Copy</button>
+                <button id="closePromptModal" class="btn btn-ghost">Close</button>
             </div>
         </div>
     </div>
+
+    <script src="./notes.js"></script>
 </body>
-<script src="./notes.js"></script>
 </html>

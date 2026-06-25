@@ -1,361 +1,427 @@
+/**
+ * script.js — Index Page Logic
+ * Handles: Note list rendering, create/delete notes, export, import (with migration)
+ */
 (() => {
-  const Elements = {
+
+  // ============================================================
+  // STORE — All data lives in a single localStorage key "NFM_V2"
+  // {
+  //   notes: { [noteId]: { id, title, createdAt, updatedAt } }
+  //   cells: { [cellId]: Cell }
+  //   relationships: [ Relationship ]
+  // }
+  // ============================================================
+
+  const STORE_KEY = "NFM_V2";
+  const LEGACY_KEY = "NotesForMore";
+
+  function loadStore() {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+
+    // First run: migrate from legacy format if it exists
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) return migrateLegacy(JSON.parse(legacy));
+
+    return { notes: {}, cells: {}, relationships: [] };
+  }
+
+  function saveStore(store) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  }
+
+  function generateId() {
+    return typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  // ============================================================
+  // MIGRATION from old [ { id, Title, Date, Time, Body } ] format
+  // ============================================================
+  function migrateLegacy(legacyItems) {
+    const store = { notes: {}, cells: {}, relationships: [] };
+    const now = Date.now();
+
+    legacyItems.forEach((old) => {
+      const noteId = old.id || generateId();
+
+      // Parse old date strings into a rough timestamp
+      const createdAt = now;
+
+      store.notes[noteId] = {
+        id: noteId,
+        title: old.Title || "Untitled",
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      // Convert the body to an initial cell (if exists)
+      const bodyText = typeof old.Body === "string" ? old.Body.trim() : "";
+      if (bodyText) {
+        const cellId = generateId();
+        store.cells[cellId] = {
+          id: cellId,
+          noteId,
+          content: bodyText,
+          createdAt,
+          updatedAt: createdAt,
+          category: "NOTE",
+          status: "ACTIVE",
+          metadata: {},
+        };
+      }
+    });
+
+    return store;
+  }
+
+  // ============================================================
+  // NOTE CRUD
+  // ============================================================
+  function createNote(title) {
+    const store = loadStore();
+    const id = generateId();
+    const now = Date.now();
+    store.notes[id] = { id, title, createdAt: now, updatedAt: now };
+    saveStore(store);
+    return id;
+  }
+
+  function deleteNote(noteId) {
+    const store = loadStore();
+    delete store.notes[noteId];
+    // Remove all cells belonging to this note
+    Object.keys(store.cells).forEach((cid) => {
+      if (store.cells[cid].noteId === noteId) delete store.cells[cid];
+    });
+    // Remove relationships for those cells
+    store.relationships = store.relationships.filter(
+      (r) => store.cells[r.from] || store.cells[r.to]
+    );
+    saveStore(store);
+  }
+
+  function getNoteStats(noteId, store) {
+    const cells = Object.values(store.cells).filter(
+      (c) => c.noteId === noteId && c.status === "ACTIVE"
+    );
+    return {
+      total: cells.length,
+      questions: cells.filter((c) => c.category === "QUESTION").length,
+      ideas: cells.filter((c) => c.category === "IDEA").length,
+    };
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+  const Els = {
+    container: document.getElementById("notesContainer"),
+    addBtn: document.getElementById("addBtn"),
     exportBtn: document.getElementById("exportBtn"),
     importBtn: document.getElementById("importBtn"),
-    addBtn: document.getElementById("addBtn"),
     modalOut: document.getElementById("modalOut"),
-    modalInner: document.getElementById("modalInner"),
     modalBody: document.getElementById("modalBody"),
     closeModal: document.getElementById("closeModal"),
-    notesContainer: document.getElementById("notesContainer"),
-  }
+    fileInput: document.getElementById("fileInput"),
+  };
 
-  // Utilities
-  function generateId() {
-    return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
-  }
-
-  function getFormattedDateTime() {
-    const now = new Date();
-    const date = now.toLocaleDateString('en-GB'); // DD/MM/YYYY
-    const time = now.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
+  function fmt(ts) {
+    return new Date(ts).toLocaleDateString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric"
     });
-    return { "Date": date, "Time": time };
   }
 
-  // reading 
-  function readLocalStorage() {
-    let items = JSON.parse(localStorage.getItem("NotesForMore")) || [];
-    let needsUpdate = false;
-    // Migration: add IDs to old notes that don't have them
-    items = items.map(item => {
-      if (!item.id) {
-        needsUpdate = true;
-        return { ...item, id: generateId() };
-      }
-      return item;
-    });
-    if (needsUpdate) {
-      localStorage.setItem("NotesForMore", JSON.stringify(items));
-    }
-    return items;
-  }
-
-  // Writing
-  function writeLocalStorage(newData) {
-    let items = readLocalStorage()
-    items.push(newData)
-    localStorage.setItem("NotesForMore", JSON.stringify(items))
-  }
-
-  // To render Notes on the screen
   function renderNotes() {
-    let items = readLocalStorage()
-    if (items.length === 0) {
-      Elements.notesContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 2rem;">No Notes Yet. Click "Add Note" to create one.</div>`
-      return
-    } else {
-      let elems = ``
-      for (let i = 0; i < items.length; i++) {
-        elems += `<div class='notes'>`
-        elems += `<a href="./notes.html#${items[i].id}" class="notediv">`
-        elems += `<div class="note-title">${items[i].Title}</div>`
-        elems += `<div class="note-date">${items[i].Date} • ${items[i].Time}</div>`
-        elems += `</a>`
-        elems += `<div style="display:flex; gap:0.5rem;">`
-        elems += `<button class='secondary-btn deleteEditBtn editBtn' data-id="${items[i].id}">Edit</button>`
-        elems += `<button class='secondary-btn deleteEditBtn delBtn' data-id="${items[i].id}">Delete</button>`
-        elems += `</div>`
-        elems += "</div> "
-      }
-      Elements.notesContainer.innerHTML = elems
+    const store = loadStore();
+    const notes = Object.values(store.notes).sort((a, b) => b.createdAt - a.createdAt);
+
+    if (notes.length === 0) {
+      Els.container.innerHTML = `<div class="empty-state">No notes yet. Press "+ New Note" to begin.</div>`;
+      return;
     }
-  }
 
-  // To check rendered notes button press
-  function checkNotes(e) {
-    if (e.target.classList.contains("editBtn") || e.target.classList.contains("delBtn")) {
-      const id = e.target.dataset.id;
-      const items = readLocalStorage();
-      const note = items.find(n => n.id === id);
-      if (!note) return;
-
-      Elements.modalOut.classList.add("show")
-      Elements.modalBody.dataset.type = "EditDeleteNote"
-      
-      if (e.target.classList.contains("editBtn")) {
-        Elements.modalBody.innerHTML = `
-        <h2>Edit Note Title</h2>
-        <input type="text" name="noteTitle" id="noteTitle" value="${note.Title}">
-        <div class="action-btns">
-          <button id="editNote" data-id="${id}" class="primary-btn">Save Changes</button>
+    Els.container.innerHTML = notes.map((note) => {
+      const stats = getNoteStats(note.id, store);
+      return `
+        <div class="note-card" id="card-${note.id}">
+          <div class="note-card-header">
+            <a href="notes.html#${note.id}" class="note-card-title">${escHtml(note.title)}</a>
+            <div class="note-card-meta">${fmt(note.createdAt)}</div>
+          </div>
+          <div class="note-card-stats">
+            <span>${stats.total} cell${stats.total !== 1 ? "s" : ""}</span>
+            ${stats.questions ? `<span>${stats.questions} question${stats.questions !== 1 ? "s" : ""}</span>` : ""}
+            ${stats.ideas ? `<span>${stats.ideas} idea${stats.ideas !== 1 ? "s" : ""}</span>` : ""}
+          </div>
+          <div class="note-card-actions">
+            <a href="notes.html#${note.id}" class="btn btn-ghost">Open</a>
+            <button class="btn btn-danger delete-note-btn" data-id="${note.id}">Delete</button>
+          </div>
         </div>
-        `;
-      } else {
-        Elements.modalBody.innerHTML = `
-        <h2>Delete Note?</h2>
-        <p>Are you sure you want to delete "${note.Title}"?</p>
-        <div class="action-btns">
-          <button id="deleteNote" data-id="${id}" class="danger-btn">Yes, Delete</button>
-        </div>
-        `;
-      }
-      return
-    }
+      `;
+    }).join("");
   }
 
-  // To open Modal when Add button is pressed
-  function openAddModal() {
-    Elements.modalOut.classList.add("show")
-    Elements.modalBody.dataset.type = "AddNote"
-    Elements.modalBody.innerHTML = `
-    <h2>New Note</h2>
-    <input type="text" name="noteTitle" id="noteTitle" placeholder="Enter note title..." autofocus>
-    <div class="action-btns">
-        <button id="addNote" class="primary-btn">Create</button>
-    </div>
-    `;
-    return
+  function escHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
-  // this is for closing modal
-  function closeModalCheck(e) {
-    if (e.target === Elements.closeModal ||
-        e.target === Elements.modalOut) {
-      Elements.modalOut.classList.remove("show")
-    }
-  }
-
-  // Deciding what type of modal and what should it does
-  function checkModal(e) {
-    closeModalCheck(e)
-    
-    let type = Elements.modalBody.dataset.type
-
-    if (type === "AddNote") {
-      if (e.target.id === "addNote") addNote(e);
-    }
-    else if (type === "EditDeleteNote") {
-      if (e.target.id == "editNote") editNote(e)
-      if (e.target.id == "deleteNote") deleteNote(e)
-    }
-    else if (type === "ExportNote") {
-      if (e.target.id === "exportAllBtn") exportNotes(true);
-      if (e.target.id === "exportSelectedBtn") exportNotes(false);
-    }
-    else if (type === "ImportNote") {
-      if (e.target.id === "importMergeBtn" || e.target.id === "importReplaceBtn") {
-        handleImportFile(e.target.id === "importReplaceBtn");
-      }
-    }
-  }
-
-  // CRUD
-  function addNote(e) {
-    let noteTitle = document.getElementById("noteTitle")
-    if (noteTitle.value.trim() === "") return;
-
-    let date_time = getFormattedDateTime();
-    const data = { 
-        "id": generateId(), 
-        "Title": noteTitle.value.trim(), 
-        "Date": date_time["Date"], 
-        "Time": date_time["Time"], 
-        "Body": {} 
-    }
-    writeLocalStorage(data)
-    Elements.modalOut.classList.remove("show")
-    renderNotes()
-  }
-
-  function editNote(e) {
-    const noteTitle = document.getElementById("noteTitle");
-    if (noteTitle.value.trim() === "") return;
-
-    const items = readLocalStorage();
-    const updatedItems = items.map(item => {
-      if (item.id === e.target.dataset.id) {
-        return { ...item, Title: noteTitle.value.trim() };
-      }
-      return item;
+  // ============================================================
+  // MODALS
+  // ============================================================
+  function openModal(html, extraButtons = []) {
+    Els.modalBody.innerHTML = html;
+    Els.modalOut.classList.add("show");
+    extraButtons.forEach(({ id, fn }) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("click", fn);
     });
-  
-    localStorage.setItem("NotesForMore", JSON.stringify(updatedItems));
-    Elements.modalOut.classList.remove("show");
-    renderNotes();
   }
 
-  function deleteNote(e) {
-    let items = readLocalStorage();
-    const remaining = items.filter((data) => data.id !== e.target.dataset.id)
-    localStorage.setItem("NotesForMore", JSON.stringify(remaining))
-    Elements.modalOut.classList.remove("show")
-    renderNotes()
+  function closeModal() {
+    Els.modalOut.classList.remove("show");
+    Els.modalBody.innerHTML = "";
   }
 
-  // Export
+  // ADD NOTE
+  function openAddModal() {
+    openModal(
+      `<h2>New Note</h2>
+       <input type="text" id="newNoteTitle" placeholder="Note title..." autofocus>
+       <div class="modal-actions">
+         <button id="confirmAdd" class="btn btn-primary">Create</button>
+       </div>`,
+      [{ id: "confirmAdd", fn: () => {
+          const inp = document.getElementById("newNoteTitle");
+          const title = inp ? inp.value.trim() : "";
+          if (!title) return;
+          const id = createNote(title);
+          closeModal();
+          renderNotes();
+          // Navigate to the note immediately
+          window.location.href = `notes.html#${id}`;
+        }
+      }]
+    );
+    // Allow Enter key to confirm
+    setTimeout(() => {
+      const inp = document.getElementById("newNoteTitle");
+      if (inp) {
+        inp.focus();
+        inp.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") document.getElementById("confirmAdd")?.click();
+        });
+      }
+    }, 50);
+  }
+
+  // DELETE NOTE
+  function openDeleteModal(noteId) {
+    const store = loadStore();
+    const note = store.notes[noteId];
+    if (!note) return;
+    openModal(
+      `<h2>Delete Note?</h2>
+       <p>Permanently remove "<strong>${escHtml(note.title)}</strong>" and all its cells?<br>This cannot be undone.</p>
+       <div class="modal-actions">
+         <button id="confirmDelete" class="btn btn-danger">Delete</button>
+       </div>`,
+      [{ id: "confirmDelete", fn: () => {
+          deleteNote(noteId);
+          closeModal();
+          renderNotes();
+        }
+      }]
+    );
+  }
+
+  // EXPORT
   function openExportModal() {
-    const items = readLocalStorage();
-    Elements.modalOut.classList.add("show");
-    Elements.modalBody.dataset.type = "ExportNote";
-    
-    if (items.length === 0) {
-        Elements.modalBody.innerHTML = `<h2>Export Notes</h2><p>No notes to export.</p>`;
-        return;
+    const store = loadStore();
+    const notes = Object.values(store.notes).sort((a, b) => b.createdAt - a.createdAt);
+    if (notes.length === 0) {
+      openModal(`<h2>Export</h2><p>No notes to export.</p>`);
+      return;
     }
 
-    let checkboxes = items.map(item => `
-        <label class="note-checkbox-item">
-            <input type="checkbox" value="${item.id}" class="export-checkbox" checked>
-            <span>${item.Title}</span>
-        </label>
-    `).join('');
+    const list = notes.map((n) => `
+      <label class="checkbox-item">
+        <input type="checkbox" class="export-cb" value="${n.id}" checked>
+        <span>${escHtml(n.title)}</span>
+      </label>
+    `).join("");
 
-    Elements.modalBody.innerHTML = `
-    <h2>Export Notes</h2>
-    <p>Select notes to export:</p>
-    <div class="note-checkbox-list">
-        ${checkboxes}
-    </div>
-    <div class="action-btns">
-        <button id="exportSelectedBtn" class="secondary-btn">Export Selected</button>
-        <button id="exportAllBtn" class="primary-btn">Export All</button>
-    </div>
-    `;
+    openModal(
+      `<h2>Export Notes</h2>
+       <div class="checkbox-list">${list}</div>
+       <div class="modal-actions">
+         <button id="exportSelected" class="btn btn-ghost">Export Selected</button>
+         <button id="exportAll" class="btn btn-primary">Export All</button>
+       </div>`,
+      [
+        { id: "exportAll", fn: () => doExport(null) },
+        { id: "exportSelected", fn: () => {
+            const ids = Array.from(document.querySelectorAll(".export-cb:checked")).map(cb => cb.value);
+            doExport(ids);
+          }
+        }
+      ]
+    );
   }
 
-  function exportNotes(exportAll) {
-    const items = readLocalStorage();
-    let toExport = items;
+  function doExport(noteIds) {
+    const store = loadStore();
+    let exportNotes = Object.values(store.notes);
+    if (noteIds) exportNotes = exportNotes.filter(n => noteIds.includes(n.id));
 
-    if (!exportAll) {
-        const selectedIds = Array.from(document.querySelectorAll('.export-checkbox:checked')).map(cb => cb.value);
-        toExport = items.filter(item => selectedIds.includes(item.id));
-    }
+    const exportedNoteIds = new Set(exportNotes.map(n => n.id));
+    const exportCells = Object.values(store.cells).filter(c => exportedNoteIds.has(c.noteId));
+    const exportedCellIds = new Set(exportCells.map(c => c.id));
+    const exportRels = store.relationships.filter(r => exportedCellIds.has(r.from) || exportedCellIds.has(r.to));
 
-    if (toExport.length === 0) {
-        alert("No notes selected for export.");
-        return;
-    }
+    const payload = {
+      version: "NFM_V2",
+      exportedAt: Date.now(),
+      notes: Object.fromEntries(exportNotes.map(n => [n.id, n])),
+      cells: Object.fromEntries(exportCells.map(c => [c.id, c])),
+      relationships: exportRels,
+    };
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(toExport, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "notes_export.json");
-    document.body.appendChild(downloadAnchorNode); // required for firefox
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-    
-    Elements.modalOut.classList.remove("show");
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `notes-export-${Date.now()}.json`;
+    a.click();
+    closeModal();
   }
 
-  // Import
-  let pendingImportData = null;
+  // IMPORT
+  let pendingImport = null;
 
   function openImportModal() {
-    pendingImportData = null;
-    Elements.modalOut.classList.add("show");
-    Elements.modalBody.dataset.type = "ImportNote";
-    
-    Elements.modalBody.innerHTML = `
-    <h2>Import Notes</h2>
-    <div id="dropZone" class="drag-drop-zone">
-        Drag & Drop a .json file here <br> or <br>
-        <span style="color: var(--primary-color); text-decoration: underline;">Click to browse</span>
-        <input type="file" id="fileInput" accept=".json" style="display:none">
-    </div>
-    <div id="importActions" class="action-btns" style="display:none;">
-        <button id="importMergeBtn" class="secondary-btn">Merge with Existing</button>
-        <button id="importReplaceBtn" class="danger-btn">Wipe & Replace All</button>
-    </div>
-    <div id="importStatus" style="margin-top: 1rem; font-size: 0.9rem; text-align: center; color: var(--primary-color);"></div>
-    `;
+    pendingImport = null;
+    openModal(
+      `<h2>Import Notes</h2>
+       <div id="dropZone" class="drop-zone">
+         Drag & drop a .json file here<br>or click to browse
+       </div>
+       <div id="importStatus" class="import-status"></div>
+       <div id="importActions" class="import-actions" style="display:none;">
+         <button id="importMerge" class="btn btn-ghost">Merge with Existing</button>
+         <button id="importReplace" class="btn btn-danger">Wipe & Replace All</button>
+       </div>`
+    );
 
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-
-    dropZone.addEventListener('click', () => fileInput.click());
-    
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) {
-            processImportFile(e.dataTransfer.files[0]);
-        }
+    const dropZone = document.getElementById("dropZone");
+    dropZone.addEventListener("click", () => Els.fileInput.click());
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files[0]) processImportFile(e.dataTransfer.files[0]);
     });
 
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) {
-            processImportFile(e.target.files[0]);
-        }
-    });
+    // Wire buttons after content is set
+    setTimeout(() => {
+      document.getElementById("importMerge")?.addEventListener("click", () => doImport(false));
+      document.getElementById("importReplace")?.addEventListener("click", () => doImport(true));
+    }, 50);
   }
 
   function processImportFile(file) {
-      if (file.type !== "application/json" && !file.name.endsWith('.json')) {
-          document.getElementById('importStatus').innerText = "Please select a valid JSON file.";
-          return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const status = document.getElementById("importStatus");
+      const actions = document.getElementById("importActions");
+      try {
+        const data = JSON.parse(e.target.result);
+
+        // Accept NFM_V2 format or legacy array format
+        if (data.version === "NFM_V2") {
+          pendingImport = data;
+        } else if (Array.isArray(data)) {
+          // Legacy array of notes — migrate first
+          pendingImport = { ...migrateLegacy(data), version: "NFM_V2", exportedAt: Date.now() };
+        } else {
+          throw new Error("Unrecognized format");
+        }
+
+        const noteCount = Object.keys(pendingImport.notes).length;
+        status.textContent = `✓ Loaded ${noteCount} note${noteCount !== 1 ? "s" : ""}. Choose an action.`;
+        actions.style.display = "flex";
+      } catch (err) {
+        status.textContent = "⚠ Could not parse file. Ensure it is a valid .json export.";
+        if (actions) actions.style.display = "none";
       }
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-          try {
-              const data = JSON.parse(e.target.result);
-              if (!Array.isArray(data)) throw new Error("JSON must be an array of notes.");
-              pendingImportData = data;
-              document.getElementById('importStatus').innerText = `Successfully loaded ${data.length} notes. Choose an action below.`;
-              document.getElementById('importActions').style.display = 'flex';
-          } catch (err) {
-              document.getElementById('importStatus').innerText = "Error parsing JSON file.";
-              document.getElementById('importActions').style.display = 'none';
-          }
-      };
-      reader.readAsText(file);
+    };
+    reader.readAsText(file);
   }
 
-  function handleImportFile(replaceAll) {
-      if (!pendingImportData) return;
-      
-      // Ensure imported notes have IDs
-      const formattedData = pendingImportData.map(item => {
-          if (!item.id) return { ...item, id: generateId() };
-          return item;
-      });
+  function doImport(replace) {
+    if (!pendingImport) return;
+    const store = replace ? { notes: {}, cells: {}, relationships: [] } : loadStore();
 
-      if (replaceAll) {
-          localStorage.setItem("NotesForMore", JSON.stringify(formattedData));
-      } else {
-          const currentData = readLocalStorage();
-          // Filter out duplicates by ID if any
-          const existingIds = new Set(currentData.map(n => n.id));
-          const newUniqueNotes = formattedData.filter(n => !existingIds.has(n.id));
-          localStorage.setItem("NotesForMore", JSON.stringify([...currentData, ...newUniqueNotes]));
-      }
+    // Merge notes
+    Object.assign(store.notes, pendingImport.notes || {});
+    // Merge cells
+    Object.assign(store.cells, pendingImport.cells || {});
+    // Merge relationships (avoid duplicates by id)
+    const relIds = new Set(store.relationships.map(r => r.id));
+    (pendingImport.relationships || []).forEach(r => {
+      if (!relIds.has(r.id)) store.relationships.push(r);
+    });
 
-      Elements.modalOut.classList.remove("show");
-      renderNotes();
+    saveStore(store);
+    closeModal();
+    renderNotes();
   }
 
-  // Event Listeners
-  Elements.notesContainer.addEventListener("click", checkNotes);
-  Elements.addBtn.addEventListener("click", openAddModal);
-  Elements.importBtn.addEventListener("click", openImportModal);
-  Elements.exportBtn.addEventListener("click", openExportModal);
-  Elements.modalOut.addEventListener("click", checkModal);
+  // ============================================================
+  // EVENT LISTENERS — Index Page
+  // ============================================================
+  Els.addBtn.addEventListener("click", openAddModal);
+  Els.exportBtn.addEventListener("click", openExportModal);
+  Els.importBtn.addEventListener("click", () => { openImportModal(); });
+  Els.fileInput.addEventListener("change", (e) => {
+    if (e.target.files[0]) {
+      openImportModal();
+      // Give the modal time to render before processing
+      setTimeout(() => processImportFile(e.target.files[0]), 100);
+      e.target.value = "";
+    }
+  });
 
-  function init() {
-    renderNotes()
-  }
+  Els.closeModal.addEventListener("click", closeModal);
+  Els.modalOut.addEventListener("click", (e) => { if (e.target === Els.modalOut) closeModal(); });
 
-  init();
-  
+  Els.container.addEventListener("click", (e) => {
+    const deleteBtn = e.target.closest(".delete-note-btn");
+    if (deleteBtn) {
+      openDeleteModal(deleteBtn.dataset.id);
+      return;
+    }
+
+    // Let standard link clicks navigate normally
+    if (e.target.closest("a")) return;
+
+    const card = e.target.closest(".note-card");
+    if (card) {
+      const noteId = card.id.replace("card-", "");
+      window.location.href = `notes.html#${noteId}`;
+    }
+  });
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  renderNotes();
+
 })();

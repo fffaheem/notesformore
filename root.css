@@ -1,3 +1,6 @@
+/* ============================================
+   GLOBAL RESET & ROOT VARIABLES
+   ============================================ */
 * {
     margin: 0;
     padding: 0;
@@ -5,40 +8,37 @@
 }
 
 :root {
-    /* Minimalist sharp borders */
-    --border-radius: 2px;
-    --border-radius-sm: 2px;
-    
-    /* True Dark / High Contrast Palette */
-    --background-color: #0a0a0a;
-    --surface-color: #111111;
-    --surface-hover: #1a1a1a;
-    
-    /* Primary is Stark White */
-    --primary-color: #ffffff;
-    --primary-hover: #dddddd;
-    --primary-text: #0a0a0a;
-    
-    /* Danger is a sharp red */
-    --danger-color: transparent;
-    --danger-hover: rgba(255, 51, 51, 0.1);
-    --danger-text: #ff3333;
-    --danger-border: #ff3333;
-    
-    /* Very subtle borders */
-    --border-color: #2a2a2a;
-    --border-hover: #4a4a4a;
-    
-    --text-primary: #f0f0f0;
-    --text-secondary: #737373;
+    /* Geometry */
+    --radius: 2px;
+    --radius-sm: 2px;
 
-    /* Original Premium Fonts */
-    --font-heading: 'Doto', sans-serif;
-    --font-body: 'JetBrains Mono', monospace;
+    /* Color System */
+    --bg:        #0a0a0a;
+    --surface:   #111111;
+    --surface-2: #181818;
+    --overlay:   rgba(10, 10, 10, 0.88);
 
-    /* Shadows disabled for flat, aesthetic look */
-    --shadow-sm: none;
-    --shadow-md: none;
-    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.8);
-    --shadow-glow: none;
+    --border:    #222222;
+    --border-2:  #333333;
+
+    --text:      #eeeeee;
+    --text-2:    #888888;
+    --text-3:    #555555;
+
+    --accent:    #ffffff;
+    --accent-bg: #0a0a0a;
+
+    --danger:    #ff3333;
+    --danger-bg: rgba(255, 51, 51, 0.08);
+
+    /* Category Colors (muted, intentional) */
+    --cat-note:     #888888;
+    --cat-idea:     #f0c040;
+    --cat-question: #60a5fa;
+    --cat-mistake:  #f87171;
+    --cat-decision: #4ade80;
+
+    /* Typography */
+    --font-display: 'Doto', sans-serif;
+    --font-mono:    'JetBrains Mono', monospace;
 }
