@@ -1,0 +1,19 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root{
+    --border-raduis: 1rem;
+    --background-color: #121212;
+    --background-danger: rgba(255,0,0,0.25);
+    --background-add: rgba(0,255,0,0.125);
+    --background-danger-5: rgba(255,0,0,0.5);
+    --border-color: #262626;
+    --text-color: #E0E0E0;
+
+    /* Font Variables */
+    --font-heading: 'Doto', sans-serif;
+    --font-body: 'JetBrains Mono', monospace;
+}

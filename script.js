@@ -197,7 +197,7 @@
     renderNotes() // Render Notes
   }
 
-  // this is just default for now
+  // this is just temporary for now
   function tmpModal() {
     Elements.modalOut.classList.add("show")
     Elements.modalBody.dataset.type = "Default"
