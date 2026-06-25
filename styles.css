@@ -77,7 +77,7 @@ body{
     transform: scale(1.0625);
 }
 
-.deleteBtn{
+.deleteEditBtn{
     padding: 1rem;
     background: var(--background-danger);
     border-radius: var(--border-raduis);
@@ -85,7 +85,7 @@ body{
     color: var(--text-color);
 }
 
-.deleteBtn:hover{
+.deleteEditBtn:hover{
     background: var(--background-danger-5);
 }
 
@@ -178,4 +178,48 @@ body{
     border-radius: var(--border-raduis);
     padding: 2rem;
     margin: 0 1rem;
+    min-width: 30dvw;
+    min-height: 25dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+}
+
+#modalBody{
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    flex-grow: 1;
+    min-width: inherit;
+    min-height: inherit;
+}
+
+#modalBody textarea{
+    padding: 1rem;
+    background-color: var(--background-color);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: var(--border-raduis);
+    flex-grow: 1;
+    /*resize: none;*/
+    min-width: inherit;
+    min-height: inherit;
+    max-width: 80dvw;
+    max-height: 70dvh;
+}
+
+.modalBtn{
+    padding: 1rem;
+    background-color: var(--background-color);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: var(--border-raduis);
+    transition: all 150ms ease-in-out;
+    
+}
+
+.modalBtn:hover{
+    transform: scale(1.0625);
 }
