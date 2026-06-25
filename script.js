@@ -84,13 +84,12 @@
   function checkNotes(e) {
     if (e.target.classList.contains("deleteEditBtn")) {
       Elements.modalOut.classList.add("show")
-      Elements.modalBody.dataset.type = "DeleteNote"
+      Elements.modalBody.dataset.type = "EditDeleteNote"
       Elements.modalBody.innerHTML = `
-        <h1 style="text-align: center;">${e.target.dataset.title}</h1>
-        <textarea name="noteTitle" id="noteTitle"></textarea>
+      <textarea name="noteTitle" id="noteTitle">${e.target.dataset.title}</textarea>
       <div style="flex-grow:1"></div>
-      <button id="addNote" class="modalBtn">Edit</button>
-      <button id="addNote" class="modalBtn">Delete</button>
+      <button id="editNote" data-edit="${e.target.dataset.title}" class="modalBtn">Edit</button>
+      <button id="deleteNote" data-delete="${e.target.dataset.title}" class="modalBtn">Delete</button>
       `;
       return
     }
@@ -127,8 +126,13 @@
       addNote(e)
     }
 
-    if (type === "DeleteNote") {
-      console.log("Delete wala model function kro")
+    if (type === "EditDeleteNote") {
+      if (e.target.id == "editNote") {
+        editNote(e)
+      }
+      if (e.target.id == "deleteNote"){
+        deleteNote(e)
+      }
       return
     }
 
@@ -161,10 +165,40 @@
     Elements.modalOut.classList.remove("show")  // closing the modal
     renderNotes() // Render Notes
   }
+
+  function editNote(e) {
+    const noteTitle = document.getElementById("noteTitle");
+    const items = readLocalStorage();
   
+    const updatedItems = items.map(item => {
+      if (item.Title === e.target.dataset.edit) {
+        return {
+          ...item,
+          Title: getUniqueTitle(noteTitle.value)
+        };
+      }
+  
+      return item;
+    });
+  
+    localStorage.setItem("NotesForMore", JSON.stringify(updatedItems));
+  
+    Elements.modalOut.classList.remove("show");
+    renderNotes();
+  }
+
+  function deleteNote(e) {
+    let items = readLocalStorage();
+    const remaining = items.filter((data) => {
+      return data.Title !== e.target.dataset.delete
+    })
+    localStorage.setItem("NotesForMore", JSON.stringify(remaining))
+    Elements.modalOut.classList.remove("show")  // closing the modal
+    renderNotes() // Render Notes
+  }
 
   // this is just default for now
-  function openModal() {
+  function tmpModal() {
     Elements.modalOut.classList.add("show")
     Elements.modalBody.dataset.type = "Default"
     Elements.modalBody.innerHTML = `
@@ -178,9 +212,9 @@
   // openAddModal to open Modal when add button is pressed
   Elements.addBtn.addEventListener(("click"), openAddModal);
   // import modal open
-  Elements.importBtn.addEventListener(("click"), openModal);
+  Elements.importBtn.addEventListener(("click"), tmpModal);
   // export modal open
-  Elements.exportBtn.addEventListener(("click"), openModal);
+  Elements.exportBtn.addEventListener(("click"), tmpModal);
   // Deciding what modal should be expecting like add or delete note
   Elements.modalOut.addEventListener(("click"), checkModal);
 
